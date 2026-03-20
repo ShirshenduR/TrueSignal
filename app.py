@@ -34,6 +34,16 @@ st.markdown("""
 def initialize_state():
     if "gh_parser" not in st.session_state:
         st.session_state.gh_parser = GitHubParser()
+    if "audit_data" not in st.session_state:
+        st.session_state.audit_data = None
+    if "match_score" not in st.session_state:
+        st.session_state.match_score = 0
+    if "trust_score" not in st.session_state:
+        st.session_state.trust_score = 0
+    if "verified_skills" not in st.session_state:
+        st.session_state.verified_skills = 0
+    if "total_skills" not in st.session_state:
+        st.session_state.total_skills = 0
 
 def main():
     initialize_state()
@@ -60,6 +70,15 @@ def main():
         
         st.markdown("---")
         run_audit = st.button("🚀 Run Holistic Intelligence Audit", type="primary")
+
+    # JD State Sync for Batch Mode
+    if "active_jd_val" not in st.session_state:
+        st.session_state.active_jd_val = jd_text
+    
+    if st.session_state.active_jd_val != jd_text:
+        st.session_state.active_jd_val = jd_text
+        st.session_state.batch_run = False
+        st.session_state.res_df = None
 
     tab1, tab2, tab3 = st.tabs(['🔍 Single Profile Audit', '📊 Batch Comparison Mode', '🧠 Enterprise RAG'])
     
@@ -124,9 +143,12 @@ def main():
                             if resume_text: resume_text = anonymize_text(resume_text)
         
                     # 5. Matching Phase 1: Vector Math
-                    match_results = compute_match(jd_text, gh_summary, resume_text, dsa_data, taxonomy)
-                    match_score = match_results["match_score"]
-                    dsa_boost = match_results["dsa_boost"]
+                    match_res = compute_match(jd_text, gh_summary, resume_text, dsa_data, taxonomy)
+                    st.session_state.match_score = match_res["match_score"]
+                    st.session_state.trust_score = match_res["trust_score"]
+                    st.session_state.verified_skills = match_res["verified_skills_count"]
+                    st.session_state.total_skills = match_res["total_resume_skills"]
+                    dsa_boost = match_res["dsa_boost"]
         
                     # 5.1 Matching Phase 2: Deterministic Analytics (Non-LLM)
                     entropy_score, polyglot_label = compute_shannon_entropy(gh_data.get("languages", {}))
@@ -136,13 +158,14 @@ def main():
                     # 6. Audit Explainability
                     dossier = f"---GITHUB---\n{gh_summary}\n\n---RESUME---\n{resume_text}\n\n---DSA STATS---\nLeetCode: {dsa_data['leetcode']}\nCodeforces: {dsa_data['codeforces']}"
                     # Using jd_text_bounded to prevent Groq TPM Strict Rate Limits
-                    audit_report = generate_glassbox_audit(jd_text_bounded, dossier, match_score)
+                    audit_report = generate_glassbox_audit(jd_text_bounded, dossier, st.session_state.match_score)
+                    st.session_state.audit_data = audit_report
         
                 st.markdown("---")
                 
                 # TOP ROW: Metrics
                 col1, col2, col3, col4 = st.columns(4)
-                col1.metric("Holistic Match Score", f"{audit_report.get('confidence_score', match_score)}%")
+                col1.metric("Holistic Match Score", f"{st.session_state.audit_data.get('confidence_score', st.session_state.match_score)}%")
                 col2.metric("DSA Boost Check", f"+{dsa_boost}%")
                 col3.metric("Repos Analyzed", gh_data.get("repos_analyzed", 0))
                 
@@ -214,7 +237,7 @@ def main():
                 st.write("These metrics evaluate strict Computer Science fundamentals, entirely bypassing LLM generations to ensure absolute, mathematically proven baselines.")
         
                 m1, m2, m3 = st.columns(3)
-                m1.metric("Dense Vector Embeddings", f"{match_results.get('base_semantic_score', 0)}%", "Cosine Similarity against JD")
+                m1.metric("Dense Vector Embeddings", f"{match_res.get('base_semantic_score', 0)}%", "Cosine Similarity against JD")
                 m2.metric("Polyglot Index (Shannon Entropy)", f"{entropy_score}", f"{polyglot_label} Profile")
                 m3.metric("Keyword Overlap (Jaccard Index)", f"{jaccard_score}%", "Pure Set Intersection")
         
@@ -240,16 +263,16 @@ def main():
         
                 with bottom_col2:
                     st.subheader("AI Reasoning (Glass-Box Audit)")
-                    st.success(f"**Status:** {audit_report.get('bias_check_status', 'Passed')}")
+                    st.success(f"**Status:** {st.session_state.audit_data.get('bias_check_status', 'Passed')}")
                     
-                    if 'hr_deep_analysis' in audit_report:
+                    if 'hr_deep_analysis' in st.session_state.audit_data:
                         st.write("---")
                         st.markdown("##### 🧠 HR Deep Analysis:")
-                        st.write(audit_report['hr_deep_analysis'])
+                        st.write(st.session_state.audit_data['hr_deep_analysis'])
         
                     st.write("---")
                     st.markdown("##### 🔍 Verified Skills Justifications:")
-                    skill_justs = audit_report.get('skill_justifications', [])
+                    skill_justs = st.session_state.audit_data.get('skill_justifications', [])
                     if skill_justs:
                         for s in skill_justs:
                             score = s.get('score_out_of_10', 'N/A')
@@ -259,33 +282,33 @@ def main():
         
                     st.write("---")
                     st.markdown("##### 🚨 Critical Skills Missing:")
-                    for s in audit_report.get('critical_skills_missing', []):
+                    for s in st.session_state.audit_data.get('critical_skills_missing', []):
                         st.markdown(f"- ❌ `{s}`")
         
                     st.write("---")
-                    if 'code_quality_assessment' in audit_report:
-                        st.info(f"**Quality Probe:** {audit_report['code_quality_assessment']}")
+                    if 'code_quality_assessment' in st.session_state.audit_data:
+                        st.info(f"**Quality Probe:** {st.session_state.audit_data['code_quality_assessment']}")
         
-                    st.warning(f"**Justification:** \\n\\n{audit_report.get('justification', 'No justification provided.')}")
+                    st.warning(f"**Justification:** \\n\\n{st.session_state.audit_data.get('justification', 'No justification provided.')}")
         
                 st.markdown("---")
                 st.subheader("Export Assessment")
                 
                 md_content = f"# TrueSignal Talent Intelligence Report\\n\\n"
                 md_content += f"**Candidate**: {display_name}\\n"
-                md_content += f"**Holistic Match Score**: {audit_report.get('confidence_score', match_score)}%\\n"
+                md_content += f"**Holistic Match Score**: {st.session_state.audit_data.get('confidence_score', st.session_state.match_score)}%\\n"
                 md_content += f"**GitHub Repos Analyzed**: {gh_data.get('repos_analyzed', 0)}\\n"
                 md_content += f"**LeetCode Solved**: {total_dsa}\\n\\n"
                 md_content += "## 🧠 HR Deep Analysis\\n"
-                md_content += audit_report.get('hr_deep_analysis', 'Not provided.') + "\\n\\n"
+                md_content += st.session_state.audit_data.get('hr_deep_analysis', 'Not provided.') + "\\n\\n"
                 md_content += "## ⚖️ Match Justification\\n"
-                md_content += audit_report.get('justification', 'Not provided.') + "\\n\\n"
+                md_content += st.session_state.audit_data.get('justification', 'Not provided.') + "\\n\\n"
                 md_content += "## ✅ Verified Skills\\n"
-                for s in audit_report.get('skill_justifications', []):
+                for s in st.session_state.audit_data.get('skill_justifications', []):
                     score = s.get('score_out_of_10', 'N/A')
                     md_content += f"- **{s.get('skill', 'Unknown')}** (Score: {score}/10): {s.get('reasoning', '')}\\n"
                 md_content += "\\n## 🚨 Critical Missing Skills\\n"
-                for s in audit_report.get('critical_skills_missing', []):
+                for s in st.session_state.audit_data.get('critical_skills_missing', []):
                     md_content += f"- {s}\\n"
         
                 import re
@@ -295,9 +318,10 @@ def main():
                     pdf = FPDF()
                     pdf.add_page()
                     pdf.set_font("Arial", 'B', 16)
-                    pdf.cell(0, 10, "TrueSignal ⚡ Candidate Audit Report", ln=True, align='C')
+                    pdf.cell(0, 10, "TrueSignal Candidate Audit Report", ln=True, align='C')
                     pdf.set_font("Arial", 'B', 12)
-                    pdf.cell(0, 10, f"Candidate: {name}", ln=True, align='C')
+                    clean_name = re.sub(r'[^\x00-\x7F]+', '', str(name)).strip()
+                    pdf.cell(0, 10, f"Candidate: {clean_name}", ln=True, align='C')
                     pdf.cell(0, 10, f"Match Score: {score}%", ln=True, align='C')
                     pdf.ln(5)
                     pdf.set_font("Arial", size=10)
@@ -329,7 +353,7 @@ def main():
                     # Use 'output(dest="S").encode("latin-1")' for compatibility
                     return pdf.output(dest='S').encode('latin-1')
 
-                pdf_bytes = create_pdf(md_content, display_name, match_score)
+                pdf_bytes = create_pdf(md_content, display_name, st.session_state.match_score)
                 st.download_button(
                     label="📄 Download Full Assessment Report (PDF)",
                     data=pdf_bytes,
@@ -361,6 +385,15 @@ def main():
                 st.session_state.batch_df = pd.DataFrame(data)
                 st.session_state.batch_files = [f.name for f in batch_resumes]
                 
+            if st.session_state.audit_data:
+                res = st.session_state.audit_data
+                score = st.session_state.match_score
+                trust = st.session_state.trust_score
+                
+                col1, col2, col3 = st.columns(3)
+                col1.metric("Match Score", f"{score}%")
+                col2.metric("Trust Score", f"{trust}%", delta="Suspected Fake" if trust < 30 else None, delta_color="inverse")
+                col3.metric("Verification", f"{st.session_state.verified_skills}/{st.session_state.total_skills} Skills")
             st.write("### 1. Verification Grid")
             st.info("The system automatically extracted the following profiles from the resumes. If any are missing, manually type them into the grid before analyzing.")
             
@@ -397,16 +430,18 @@ def main():
                         results.append({
                             "Candidate": row["Candidate File"].replace(".pdf", ""),
                             "Match Score": match_results["match_score"],
+                            "Trust Score": f"{match_results['trust_score']}%",
+                            "Rank Score": match_results["match_score_with_tiebreaker"],
                             "Jaccard %": jaccard_score,
                             "Entropy": entropy_score,
-                            "LeetCode Solved": dsa_data["leetcode"].get("total_solved", 0) if dsa_data.get("leetcode") else 0,
-                            "Codeforces Rating": dsa_data["codeforces"].get("rating", 0) if dsa_data.get("codeforces") else 0
+                            "LeetCode": dsa_data["leetcode"].get("total_solved", 0) if dsa_data.get("leetcode") else 0,
+                            "Codeforces": dsa_data["codeforces"].get("rating", 0) if dsa_data.get("codeforces") else 0
                         })
                         progress_bar.progress((index + 1) / len(edited_df))
                         
                     status_text.empty()
                     progress_bar.empty()
-                    st.session_state.res_df = pd.DataFrame(results).sort_values(by="Match Score", ascending=False)
+                    st.session_state.res_df = pd.DataFrame(results).sort_values(by="Rank Score", ascending=False)
                     st.session_state.batch_run = True
                 
                 res_df = st.session_state.res_df
@@ -449,8 +484,12 @@ def main():
                     
                     match_results_c = compute_match(jd_text, gh_summary_c, c_resume, dsa_data_c, taxonomy)
                     
-                    jd_text_bounded = jd_text[:1500] if jd_text else ""
-                    dossier_c = f"---GITHUB---\n{gh_summary_c}\n\n---RESUME---\n{c_resume}\n\n---DSA STATS---\nLeetCode: {dsa_data_c['leetcode']}\nCodeforces: {dsa_data_c['codeforces']}"
+                    # Truncate aggressively to stay within Groq's 6k token limit (Error 413 fix)
+                    jd_text_bounded = jd_text[:1200] if jd_text else ""
+                    gh_summary_bounded = (gh_summary_c[:3500] + "...") if len(gh_summary_c) > 3500 else gh_summary_c
+                    resume_bounded = (c_resume[:2500] + "...") if len(c_resume) > 2500 else c_resume
+                    
+                    dossier_c = f"---GITHUB---\n{gh_summary_bounded}\n\n---RESUME---\n{resume_bounded}\n\n---DSA STATS---\nLeetCode: {dsa_data_c['leetcode']}\nCodeforces: {dsa_data_c['codeforces']}"
                     
                     with st.spinner("Running Glass-Box Audit (LLM Analysis)..."):
                         audit_report_c = generate_glassbox_audit(jd_text_bounded, dossier_c, match_results_c["match_score"])

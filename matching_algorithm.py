@@ -100,14 +100,46 @@ def compute_match(jd_text: str, github_summary: str, resume_text: str, dsa_data:
     
     penalty_multiplier = 1.0
     if not has_github and not has_dsa:
-        penalty_multiplier = 0.4  # 60% penalty for completely unverified candidates
-    elif not has_dsa:
-        penalty_multiplier = 0.75 # 25% penalty for missing algorithmic verification
+        penalty_multiplier = 0.4  # 60% penalty for completely unverified (No GitHub & No DSA)
+    
+    # Missing DSA is now NEUTRAL if other OSINT exists.
+    # No more 105: penalty_multiplier = 0.75 logic.
         
     final_score = (base_match * penalty_multiplier) + dsa_boost
     final_score = round(min(100.0, final_score), 2)
     
-    # Taxonomy tagging
+    # 3. Trust Score (Verification of Resume Claims)
+    resume_skills = []
+    resume_lower = resume_text.lower()
+    for skill in taxonomy_list:
+        if skill.lower() in resume_lower:
+            resume_skills.append(skill)
+            
+    github_dsa_text = github_summary + " " + str(dsa_data)
+    github_dsa_lower = github_dsa_text.lower()
+    
+    verified_count = 0
+    for skill in resume_skills:
+        if skill.lower() in github_dsa_lower:
+            verified_count += 1
+            
+    trust_score = 100
+    if resume_skills:
+        trust_score = round((verified_count / len(resume_skills)) * 100, 2)
+    
+    # Apply Trust-based penalty if trust is critically low (< 20% and resume is long)
+    if trust_score < 20 and len(resume_skills) > 5:
+        final_score *= 0.8 # Additional 20% penalty for suspected fake resume
+        
+    final_score = round(min(100.0, final_score), 2)
+    
+    # 4. Secondary Tie-Breaker (DSA for same-level candidates)
+    # We add a tiny fractional component to the match_score for internal sorting
+    # so that even if final_score is the same, DSA strength wins.
+    dsa_weight_internal = (total_solved * 0.001) + (rating * 0.0001)
+    match_score_with_tiebreaker = final_score + dsa_weight_internal
+    
+    # Taxonomy tagging (Total)
     found_skills = []
     combined_lower = combined_text.lower()
     for skill in taxonomy_list:
@@ -116,7 +148,11 @@ def compute_match(jd_text: str, github_summary: str, resume_text: str, dsa_data:
             
     return {
         "match_score": final_score,
+        "match_score_with_tiebreaker": match_score_with_tiebreaker,
         "base_semantic_score": base_match,
         "dsa_boost": dsa_boost,
+        "trust_score": trust_score,
+        "verified_skills_count": verified_count,
+        "total_resume_skills": len(resume_skills),
         "extracted_skills": list(set(found_skills))
     }
