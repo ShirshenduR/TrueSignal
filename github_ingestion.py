@@ -72,37 +72,7 @@ class GitHubParser:
             result["summary_text"] = "\\n".join(summary_lines)
 
         except GithubException as e:
-            print(f"GitHub API Error: {e}. Using fallback data for {username}.")
+            print(f"GitHub API Error: {e}")
             result["error"] = str(e)
-            result = self._get_fallback_data(username)
 
         return result
-
-    def _get_fallback_data(self, username: str) -> Dict[str, Any]:
-        """
-        Fallback mock data with commit messages for demos.
-        """
-        dummy_repos = [
-            {"name": "awesome-project", "description": "A scalable microservices architecture", "language": "Python", "stars": 42, "commits": 150, "recent_commit_messages": ["Refactor authentication layer", "Add unit tests"]},
-            {"name": "react-frontend-app", "description": "Interactive UI dashboard using React and Tailwind", "language": "TypeScript", "stars": 15, "commits": 85, "recent_commit_messages": ["Fix responsive layout bug", "Update dependencies"]},
-        ]
-        
-        summary_lines = [f"Candidate: {username} (MOCK DATA)", "Total Repos Analyzed: 2"]
-        langs = {}
-        commits = 0
-        for r in dummy_repos:
-            summary_lines.append(f"Repo: {r['name']} | Language: {r['language']} | Stars: {r['stars']} | Commits: {r['commits']}")
-            summary_lines.append(f"Description: {r['description']}")
-            summary_lines.append(f"Recent Commits: {', '.join(r['recent_commit_messages'])}")
-            langs[r["language"]] = langs.get(r["language"], 0) + 1
-            commits += r["commits"]
-
-        return {
-            "username": username,
-            "repos_analyzed": len(dummy_repos),
-            "total_commits": commits,
-            "languages": langs,
-            "summary_text": "\\n".join(summary_lines),
-            "raw_repos": dummy_repos,
-            "error": "Rate limited or User Not Found. Showing Mock Data."
-        }

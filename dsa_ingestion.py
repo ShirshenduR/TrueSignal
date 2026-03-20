@@ -1,10 +1,17 @@
 import requests
 from typing import Dict, Any
 
+def _clean_username(url_or_name: str) -> str:
+    if not url_or_name:
+        return ""
+    val = url_or_name.strip().strip("/")
+    return val.split("/")[-1] if ("leetcode.com" in val or "codeforces.com" in val) else val
+
 def fetch_leetcode_stats(username: str) -> Dict[str, Any]:
     """
     Fetches basic LeetCode stats using their unofficial GraphQL API.
     """
+    username = _clean_username(username)
     if not username:
         return {}
         
@@ -49,12 +56,13 @@ def fetch_leetcode_stats(username: str) -> Dict[str, Any]:
     except Exception as e:
         print(f"LeetCode fetch error: {e}")
         
-    return {"platform": "LeetCode", "total_solved": 0, "error": "Failed to fetch LeetCode data for Demo.", "mock": True}
+    return {}
 
 def fetch_codeforces_stats(username: str) -> Dict[str, Any]:
     """
     Fetches Codeforces rating and max rating using their official API.
     """
+    username = _clean_username(username)
     if not username:
         return {}
         
@@ -74,4 +82,4 @@ def fetch_codeforces_stats(username: str) -> Dict[str, Any]:
     except Exception as e:
         print(f"Codeforces fetch error: {e}")
         
-    return {"platform": "Codeforces", "rating": 0, "error": "Failed to fetch Codeforces data for Demo.", "mock": True}
+    return {}

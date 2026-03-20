@@ -8,3 +8,4 @@ groq
 python-dotenv
 PyPDF2
 requests
+fpdf

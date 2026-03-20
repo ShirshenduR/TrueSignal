@@ -27,7 +27,7 @@ Do NOT add any opening remarks, tags, or markdown formatting. Output ONLY the sa
 
     try:
         response = client.chat.completions.create(
-            model="llama3-8b-8192",
+            model="llama-3.1-8b-instant",
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": text}
@@ -46,7 +46,7 @@ def generate_glassbox_audit(jd_text: str, candidate_dossier: str, match_score: f
     """
     api_key = os.environ.get("GROQ_API_KEY")
     if not api_key:
-        return _mock_audit_response()
+        return {"bias_check_status": "Failed", "justification": "GROQ_API_KEY environment variable is missing for the AI Audit."}
 
     client = Groq(api_key=api_key)
     
@@ -55,9 +55,12 @@ Provide a strict JSON response.
 Schema Required:
 {
   "confidence_score": <integer from 0 to 100>,
-  "verified_skills_present": [<list of strings>],
+  "skill_justifications": [
+      {"skill": "Skill Name", "score_out_of_10": <int>, "reasoning": "'We believe this candidate has this skill because...' (Reference specific repos, DSA stats, or resume lines)"}
+  ],
   "critical_skills_missing": [<list of strings>],
   "code_quality_assessment": "Short sentence evaluating commit message quality and algorithmic capability.",
+  "hr_deep_analysis": "Detailed 3-sentence Senior HR perspective analyzing career trajectory, project scale/impact, and true seniority indicators.",
   "bias_check_status": "Strict Anonymization Applied" or "Not Applied",
   "justification": "<A crisp, 2-sentence explanation of the match>"
 }"""
@@ -74,7 +77,7 @@ Math Match Score: {match_score}%
 
     try:
         response = client.chat.completions.create(
-            model="llama3-8b-8192",
+            model="llama-3.1-8b-instant",
             messages=[
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt}
@@ -86,14 +89,11 @@ Math Match Score: {match_score}%
         return json.loads(content)
     except Exception as e:
         print(f"Groq API Error: {e}")
-        return _mock_audit_response()
-
-def _mock_audit_response() -> Dict[str, Any]:
-    return {
-        "confidence_score": 85,
-        "verified_skills_present": ["Python", "React", "Docker", "Algorithms"],
-        "critical_skills_missing": ["Kubernetes"],
-        "code_quality_assessment": "Commit messages are highly descriptive. Strong algorithmic foundation demonstrated.",
-        "bias_check_status": "Mock Mode",
-        "justification": "Candidate possesses a robust history in core development ecosystems with solid commit hygiene. DSA scores indicate strong problem-solving capabilities."
-    }
+        return {
+            "bias_check_status": "API Failed",
+            "justification": f"Glass-Box AI Generation failed due to API Error: {e}",
+            "hr_deep_analysis": "Unavailable.",
+            "code_quality_assessment": "Unavailable.",
+            "critical_skills_missing": [],
+            "skill_justifications": []
+        }
