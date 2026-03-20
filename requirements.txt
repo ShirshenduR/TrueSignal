@@ -1,0 +1,10 @@
+streamlit
+plotly
+pandas
+PyGithub
+sentence-transformers
+scikit-learn
+groq
+python-dotenv
+PyPDF2
+requests
