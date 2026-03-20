@@ -25,7 +25,7 @@ class GitHubParser:
 
         try:
             # Proactive Rate Limit Check
-            rate_limit = self.gh.get_rate_limit().core
+            rate_limit = self.gh.get_rate_limit().rate
             if rate_limit.remaining < 50:
                 raise GithubException(403, {"message": f"GitHub Rate Limit critically low ({rate_limit.remaining} remaining). Please wait until {rate_limit.reset}."}, {})
 
