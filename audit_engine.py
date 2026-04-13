@@ -22,7 +22,7 @@ Rewrite the input text to completely REMOVE any mention of:
 - Geographic Locations
 - Any other demographic markers.
 
-Preserve ONLY the technical skills, metrics, job titles, and professional achievements.
+CRITICAL: Do not remove technical skills, programming languages, or framework names as they are the basis for technical evaluation. Preserve ONLY the technical skills, metrics, job titles, and professional achievements.
 Do NOT add any opening remarks, tags, or markdown formatting. Output ONLY the sanitized text."""
 
     try:
@@ -60,6 +60,8 @@ CRITICAL RULES FOR MASTERY INFERENCE:
    Analyze if a project (Repo) is a "First-Principles" implementation of a complex algorithm, framework, or system. 
    If a candidate has built the "Whole" of a complex architecture from scratch, they are a VERIFIED EXPERT (10/10) in every single constituent sub-skill required to make that architecture work (e.g. Backprop, low-level math, hardware optimization, etc.). 
 6. DYNAMIC EXCLUSION RULE: If a skill is a foundational component of a project the candidate has already built, it MUST NEVER appear in 'critical_skills_missing'. Trust the architectural depth over the lack of specific keywords.
+7. TOOLING EXCLUSION: Tooling like VS Code, Postman, or Git are industry standards; only flag them as missing if they are explicitly mentioned as mandatory in the JD and are nowhere in the dossier.
+8. EVIDENCE-BASED ONLY (STRICTOR): If a skill is listed in the 'TECHNICAL SKILLS' section of the Resume or is used in any GitHub repo, it MUST NOT be marked missing.
 
 Provide a strict JSON response.
 Schema Required:
